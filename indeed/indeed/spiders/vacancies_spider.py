@@ -1,6 +1,8 @@
 from urllib.parse import urlencode
+import json
 
 import scrapy
+from bs4 import BeautifulSoup
 
 
 class IndeedVacanciesSpider(scrapy.Spider):
@@ -14,8 +16,8 @@ class IndeedVacanciesSpider(scrapy.Spider):
 
     def start_requests(self):
         # This parameters will request from user
-        country = "gb"
-        keyword_list = ["data", "engineer"]
+        country = "uk"
+        keyword_list = ["python data engineer"]
         location_list = ["london"]
         for keyword in keyword_list:
             for location in location_list:
@@ -31,4 +33,20 @@ class IndeedVacanciesSpider(scrapy.Spider):
                 )
 
     def parse_search_results(self, response):
-        print(response.meta)
+        re_pattern = (
+            r'window.mosaic.providerData\["mosaic-provider-jobcards"\]=(\{.+?\});'
+        )
+        xpath_pattern = '//script[@id="mosaic-data"]/text()'
+
+        country = response.meta["country"]
+        keyword = response.meta["keyword"]
+        location = response.meta["location"]
+        script = response.xpath(xpath_pattern).re(re_pattern)
+        json_search_result = json.loads(script[0])
+        jobs = json_search_result["metaData"]["mosaicProviderJobCardsModel"]["results"]
+
+        for job in jobs:
+            job_key = job["jobkey"]
+            job_url = f"https://{country}.indeed.com/viewjob?jk=" + job_key
+
+            print(job_key, job_url)
